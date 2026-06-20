@@ -94,7 +94,15 @@ const LANG_STARTERS = {
   typescript: `// TypeScript Code\nconst greet = (name: string): string => {\n  return \`Hello, \${name}!\`;\n};\nconsole.log(greet("Developer"));\n`,
   html: `<!DOCTYPE html>\n<html>\n<body>\n  <h1>Hello World</h1>\n</body>\n</html>`,
   css: `/* CSS */\nbody {\n  background: #12121e;\n  color: #fff;\n}`,
-  json: `{\n  "name": "codesync-project",\n  "version": "1.0.0"\n}`
+  json: `{\n  "name": "codesync-project",\n  "version": "1.0.0"\n}`,
+  go: `// Go Code\npackage main\nimport "fmt"\nfunc main() {\n    name := "Developer"\n    fmt.Println("Hello " + name)\n}\n`,
+  rust: `// Rust Code\nfn main() {\n    let name = "Developer";\n    println!("Hello {}", name);\n}\n`,
+  php: `<?php\n// PHP Code\n$name = "Developer";\necho "Hello " . $name;\n`,
+  ruby: `# Ruby Code\nname = "Developer"\nputs "Hello " + name\n`,
+  csharp: `// C# Code\nusing System;\nclass Program {\n    static void Main() {\n        string name = "Developer";\n        Console.WriteLine("Hello " + name);\n    }\n}\n`,
+  sql: `-- SQL Queries\nCREATE TABLE developers (\n    id INT PRIMARY KEY,\n    name VARCHAR(50)\n);\nINSERT INTO developers VALUES (1, 'Alice');\nSELECT * FROM developers;\n`,
+  markdown: `# CodeSync Workspace\n\n- Collaborative coding\n- Multiple file tree\n`,
+  shell: `# Shell Script\nNAME="Developer"\necho "Hello $NAME"\n`
 };
 
 // ─── Simulated WebSocket Broker ───────────────────────────────────────────────
@@ -229,7 +237,7 @@ const randomColor = () => COLORS[Math.floor(Math.random() * COLORS.length)];
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 const getLanguageForFile = (fileName) => {
-  const ext = fileName.split(".").pop();
+  const ext = fileName.split(".").pop().toLowerCase();
   switch (ext) {
     case "html": return "html";
     case "css": return "css";
@@ -242,6 +250,14 @@ const getLanguageForFile = (fileName) => {
     case "java": return "java";
     case "cpp": return "cpp";
     case "c": return "cpp";
+    case "go": return "go";
+    case "rs": return "rust";
+    case "php": return "php";
+    case "rb": return "ruby";
+    case "cs": return "csharp";
+    case "sql": return "sql";
+    case "md": return "markdown";
+    case "sh": return "shell";
     default: return "plaintext";
   }
 };
@@ -965,30 +981,109 @@ function EditorWorkspace({ roomId, userName, userColor, onLeave }) {
           if (!logs.length && !errors.length && !lines.length) {
             lines.push({ type: "info", text: "(Execution complete with no output)" });
           }
-        } else if (currentLang === "python") {
-          // Process prints
-          const printRegex = /print\(([^)]+)\)/g;
-          let match;
-          let found = false;
-          
-          lines.push({ type: "info", text: `[docker://python-sandbox] spinning up container...` });
-          lines.push({ type: "info", text: `[docker://python-sandbox] mounting ${activeFileName}...` });
-          
-          while ((match = printRegex.exec(code)) !== null) {
-            found = true;
-            let val = match[1].trim();
-            val = val.replace(/^f["']|["']$/g, "").replace(/\{([^}]+)\}/g, "…");
-            val = val.replace(/^["']|["']$/g, "");
-            lines.push({ type: "out", text: val });
-          }
-          if (!found) {
-            lines.push({ type: "info", text: `(Python script finished. No print statements detected.)` });
-          }
         } else {
-          // Standard compiler mock
-          lines.push({ type: "info", text: `[sandbox://compile-system] compiling files...` });
-          lines.push({ type: "out", text: `Compiled active code model: ${activeFileName}` });
-          lines.push({ type: "info", text: `Execution ready. Use Live HTML preview for web renders.` });
+          // General execution simulation for Python, C++, Java, Go, Rust, PHP, Ruby, C#, Shell
+          const rawLines = code.split("\n");
+          const outputs = [];
+          const vars = {};
+          
+          const resolveVal = (expr) => {
+            expr = expr.trim();
+            if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
+              return expr.slice(1, -1);
+            }
+            if (!isNaN(expr)) {
+              return Number(expr);
+            }
+            if (vars[expr] !== undefined) {
+              return vars[expr];
+            }
+            if (expr.includes("+")) {
+              const parts = expr.split("+").map(p => resolveVal(p));
+              return parts.reduce((acc, v) => acc + String(v), "");
+            }
+            return expr;
+          };
+
+          const containerName = `${currentLang}-sandbox`;
+          lines.push({ type: "info", text: `[docker://${containerName}] spinning up container...` });
+          if (currentLang === "cpp") {
+            lines.push({ type: "info", text: `[docker://${containerName}] g++ -O3 ${activeFileName} -o main` });
+            lines.push({ type: "info", text: `[docker://${containerName}] ./main` });
+          } else if (currentLang === "java") {
+            lines.push({ type: "info", text: `[docker://${containerName}] javac Main.java` });
+            lines.push({ type: "info", text: `[docker://${containerName}] java Main` });
+          } else if (currentLang === "rust") {
+            lines.push({ type: "info", text: `[docker://${containerName}] rustc ${activeFileName} -o main` });
+            lines.push({ type: "info", text: `[docker://${containerName}] ./main` });
+          } else if (currentLang === "go") {
+            lines.push({ type: "info", text: `[docker://${containerName}] go run ${activeFileName}` });
+          } else if (currentLang === "php") {
+            lines.push({ type: "info", text: `[docker://${containerName}] php ${activeFileName}` });
+          } else if (currentLang === "ruby") {
+            lines.push({ type: "info", text: `[docker://${containerName}] ruby ${activeFileName}` });
+          } else if (currentLang === "csharp") {
+            lines.push({ type: "info", text: `[docker://${containerName}] mcs ${activeFileName} && mono ${activeFileName.replace(".cs", ".exe")}` });
+          } else if (currentLang === "shell") {
+            lines.push({ type: "info", text: `[docker://${containerName}] bash ${activeFileName}` });
+          } else {
+            lines.push({ type: "info", text: `[docker://${containerName}] executing ${activeFileName}...` });
+          }
+
+          for (let l of rawLines) {
+            l = l.trim();
+            if (!l || l.startsWith("//") || l.startsWith("#") || l.startsWith("/*") || l.startsWith("--")) continue;
+
+            const assignMatch = l.match(/^(?:const|let|var|string|String|int|double|float|auto|let\s+mut)?\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?::=|=)\s*([^;]+);?$/);
+            if (assignMatch) {
+              const varName = assignMatch[1].trim();
+              const varValExpr = assignMatch[2].trim();
+              vars[varName] = resolveVal(varValExpr);
+              continue;
+            }
+
+            if (currentLang === "python") {
+              const m = l.match(/^print\(([^)]+)\)$/);
+              if (m) outputs.push(String(resolveVal(m[1])));
+            } else if (currentLang === "java" || currentLang === "csharp") {
+              const m = l.match(/^(?:System\.out\.println|Console\.WriteLine)\(([^)]+)\);?$/);
+              if (m) outputs.push(String(resolveVal(m[1])));
+            } else if (currentLang === "cpp") {
+              const m = l.match(/^cout\s*<<\s*([^;]+);?$/);
+              if (m) {
+                const parts = m[1].split("<<").map(p => p.trim()).filter(p => p !== "endl");
+                outputs.push(parts.map(p => resolveVal(p)).join(""));
+              }
+            } else if (currentLang === "go") {
+              const m = l.match(/^(?:fmt\.Println|println)\(([^)]+)\);?$/);
+              if (m) outputs.push(String(resolveVal(m[1])));
+            } else if (currentLang === "rust") {
+              const m = l.match(/^println!\("([^"]*)"\s*(?:,\s*([^)]+))?\);?$/);
+              if (m) {
+                let formatStr = m[1];
+                const args = m[2] ? m[2].split(",").map(a => a.trim()) : [];
+                args.forEach(arg => {
+                  const val = vars[arg] !== undefined ? vars[arg] : arg;
+                  formatStr = formatStr.replace("{}", String(val));
+                });
+                outputs.push(formatStr);
+              }
+            } else if (currentLang === "php") {
+              const m = l.match(/^echo\s+([^;]+);?$/);
+              if (m) outputs.push(String(resolveVal(m[1])));
+            } else if (currentLang === "ruby") {
+              const m = l.match(/^puts\s+(.+)$/);
+              if (m) outputs.push(String(resolveVal(m[1])));
+            } else if (currentLang === "shell") {
+              const m = l.match(/^echo\s+["']?([^"']+)["']?$/);
+              if (m) outputs.push(String(resolveVal(m[1])));
+            }
+          }
+
+          outputs.forEach(t => lines.push({ type: "out", text: t }));
+          if (outputs.length === 0) {
+            lines.push({ type: "info", text: `(Process exited with no output)` });
+          }
         }
       } catch (err) {
         lines.push({ type: "err", text: `CompilerError: ${err.message}` });
@@ -1085,27 +1180,48 @@ function EditorWorkspace({ roomId, userName, userColor, onLeave }) {
 
   // File Managers
   const handleCreateFile = () => {
-    const name = newFileName.trim();
+    let name = newFileName.trim();
     if (!name) return;
-    
-    // Check duplication
+
+    const langExts = {
+      javascript: ".js",
+      python: ".py",
+      cpp: ".cpp",
+      java: ".java",
+      html: ".html",
+      css: ".css",
+      typescript: ".ts",
+      go: ".go",
+      rust: ".rs",
+      php: ".php",
+      ruby: ".rb",
+      csharp: ".cs",
+      sql: ".sql",
+      json: ".json",
+      markdown: ".md",
+      shell: ".sh"
+    };
+
+    const ext = langExts[newFileLang] || "";
+    if (ext && !name.toLowerCase().endsWith(ext)) {
+      name = name + ext;
+    }
+
     if (files[name]) {
       alert("File already exists!");
       return;
     }
 
-    const language = getLanguageForFile(name);
-    const starterContent = LANG_STARTERS[language] || "// Start coding...\n";
+    const starterContent = LANG_STARTERS[newFileLang] || "// Start coding...\n";
 
     setFiles(prev => ({
       ...prev,
-      [name]: { name, content: starterContent, language }
+      [name]: { name, content: starterContent, language: newFileLang }
     }));
     setActiveFileName(name);
 
-    connRef.current?.createFile(name, starterContent, language);
+    connRef.current?.createFile(name, starterContent, newFileLang);
 
-    // Reset inputs
     setNewFileName("");
     setIsCreatingFile(false);
   };
@@ -1254,21 +1370,43 @@ function EditorWorkspace({ roomId, userName, userColor, onLeave }) {
 
             {/* Create File Input Block */}
             {isCreatingFile && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px", background: "rgba(0,0,0,0.2)", padding: "8px", borderRadius: "6px", marginBottom: "12px", border: "1px solid rgba(139,92,246,0.2)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "rgba(0,0,0,0.2)", padding: "10px", borderRadius: "8px", marginBottom: "12px", border: "1px solid rgba(139,92,246,0.2)" }}>
                 <input 
                   type="text" 
                   value={newFileName}
                   onChange={(e) => setNewFileName(e.target.value)}
-                  placeholder="name.html, code.py..."
+                  placeholder="Filename (e.g. main)"
                   onKeyDown={(e) => e.key === "Enter" && handleCreateFile()}
-                  style={{ background: "#05050a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "4px", padding: "4px 8px", fontSize: "12px", color: "#f8fafc", width: "100%", outline: "none" }}
+                  style={{ background: "#05050a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "4px", padding: "6px 8px", fontSize: "12px", color: "#f8fafc", width: "100%", outline: "none" }}
                   autoFocus
                 />
-                <div style={{ display: "flex", gap: "4px", alignSelf: "flex-end" }}>
-                  <button style={{ ...S.btnGhost, padding: "2px 6px", fontSize: "10px" }} onClick={() => setIsCreatingFile(false)}>
+                <select
+                  value={newFileLang}
+                  onChange={(e) => setNewFileLang(e.target.value)}
+                  style={{ background: "#05050a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "4px", padding: "6px 8px", fontSize: "12px", color: "#f8fafc", width: "100%", outline: "none", cursor: "pointer" }}
+                >
+                  <option value="javascript">JavaScript (.js)</option>
+                  <option value="python">Python (.py)</option>
+                  <option value="cpp">C++ (.cpp)</option>
+                  <option value="java">Java (.java)</option>
+                  <option value="go">Go (.go)</option>
+                  <option value="rust">Rust (.rs)</option>
+                  <option value="php">PHP (.php)</option>
+                  <option value="ruby">Ruby (.rb)</option>
+                  <option value="csharp">C# (.cs)</option>
+                  <option value="sql">SQL (.sql)</option>
+                  <option value="html">HTML (.html)</option>
+                  <option value="css">CSS (.css)</option>
+                  <option value="typescript">TypeScript (.ts)</option>
+                  <option value="json">JSON (.json)</option>
+                  <option value="markdown">Markdown (.md)</option>
+                  <option value="shell">Shell script (.sh)</option>
+                </select>
+                <div style={{ display: "flex", gap: "6px", alignSelf: "flex-end" }}>
+                  <button style={{ ...S.btnGhost, padding: "3px 8px", fontSize: "11px" }} onClick={() => setIsCreatingFile(false)}>
                     Cancel
                   </button>
-                  <button style={{ ...S.btnSuccess, padding: "2px 8px", fontSize: "10px" }} onClick={handleCreateFile}>
+                  <button style={{ ...S.btnSuccess, padding: "3px 10px", fontSize: "11px" }} onClick={handleCreateFile}>
                     Create
                   </button>
                 </div>
